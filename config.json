@@ -1,0 +1,22 @@
+{
+  "database": {
+    "host": "localhost",
+    "port": 5435,
+    "dbname": "asset_db",
+    "user": "postgres",
+    "password": "postgres"
+  },
+  "orca_slicer": {
+    "docker_config_path": "/srv/orcaslicer/config/.config/OrcaSlicer/user/default",
+    "docker_container": "orcaslicer",
+    "docker_image": "lscr.io/linuxserver/orcaslicer:latest",
+    "web_url": "https://192.168.146.202:3001",
+    "downloads_dir": "/srv/orcaslicer/config/Downloads"
+  },
+  "thumbnails": {
+    "size": 400,
+    "quality": 70,
+    "google_drive_size": "s250"
+  },
+  "temp_dir": "/home/hsa/3d_asset_manager/temp_work"
+}

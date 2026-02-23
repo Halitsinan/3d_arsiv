@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  orcaslicer:
+    image: lscr.io/linuxserver/orcaslicer:latest
+    container_name: orcaslicer
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Istanbul
+      - SUBFOLDER=/
+    ports:
+      - "3000:3000"   # HTTP (KasmVNC)
+      - "3001:3001"   # HTTPS (KasmVNC)
+    volumes:
+      - /srv/orcaslicer/config:/config
+    restart: unless-stopped

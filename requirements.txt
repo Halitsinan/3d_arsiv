@@ -1,0 +1,13 @@
+psycopg2-binary==2.9.9
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+Pillow==10.1.0
+trimesh==4.0.5
+pyrender==0.1.45
+PyOpenGL==3.1.7
+numpy==1.26.2
+rarfile==4.1
+py7zr==0.20.8
+streamlit==1.29.0
+pandas==2.1.4

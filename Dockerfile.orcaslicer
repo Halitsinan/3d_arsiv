@@ -1,0 +1,26 @@
+# Orca Slicer Docker Container - Ubuntu 22.04 base
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+    wget \
+    libwebkit2gtk-4.0-37 \
+    libgtk-3-0 \
+    libgl1 \
+    xvfb \
+    fuse \
+    libfuse2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Orca Slicer AppImage indir
+WORKDIR /opt
+RUN wget https://github.com/SoftFever/OrcaSlicer/releases/download/v2.1.1/OrcaSlicer_Linux_V2.1.1.AppImage \
+    && chmod +x OrcaSlicer_Linux_V2.1.1.AppImage
+
+# CLI wrapper
+RUN echo '#!/bin/bash\nxvfb-run -a /opt/OrcaSlicer_Linux_V2.1.1.AppImage "$@"' > /usr/local/bin/orcaslicer \
+    && chmod +x /usr/local/bin/orcaslicer
+
+ENTRYPOINT ["orcaslicer"]
+CMD ["--help"]
