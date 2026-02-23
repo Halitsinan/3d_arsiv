@@ -127,6 +127,20 @@ def deep_scan():
                         cur.execute("UPDATE assets SET thumbnail_attempts = thumbnail_attempts + 1 WHERE id=%s", (aid,))
                         conn.commit()
                         continue
+
+                    # Çok parçalı RAR kontrolü
+                    import re as _re
+                    is_multipart = bool(_re.search(r'\.part\d+\.rar$', fname.lower())) or bool(_re.search(r'\.r\d+$', fname.lower()))
+                    part_num = 0
+                    m = _re.search(r'\.part(\d+)\.rar$', fname.lower())
+                    if m: part_num = int(m.group(1))
+
+                    if is_multipart and part_num > 1:
+                        # part2, part3... — sadece Drive thumbnail'ini almayı dene
+                        print(f"⏭️ Atlandı (çok parçalı RAR, part {part_num}): {fname}")
+                        cur.execute("UPDATE assets SET thumbnail_attempts = 10 WHERE id=%s", (aid,))
+                        conn.commit()
+                        continue
                     
                     file_id = fpath.split("id=")[1].split("&")[0] if "id=" in fpath else fpath.split("/d/")[1].split("/")[0]
                     
@@ -140,6 +154,28 @@ def deep_scan():
                     
                     blob = None
                     ext = os.path.splitext(fname)[1].lower()
+
+                    # part1.rar veya .r00 (çok parçalı) → extract etme, sadece Drive thumbnail dene
+                    import re as _re
+                    if _re.search(r'\.part1\.rar$', fname.lower()) or _re.search(r'\.r00$', fname.lower()):
+                        print(f"      📦 Çok parçalı RAR part1 — extract edilemiyor, Drive thumbnail deneniyor")
+                        # Dosyayı indirmeden Drive API thumbnail'ini svc ile al
+                        try:
+                            fmeta = svc.files().get(fileId=file_id, fields='thumbnailLink').execute()
+                            tlink = fmeta.get('thumbnailLink', '')
+                            if tlink:
+                                import requests as _req
+                                blob = _req.get(tlink.split('=')[0] + '=s400', timeout=10).content
+                        except Exception as et:
+                            print(f"      ⚠️ Drive thumbnail alınamadı: {et}")
+                        if blob:
+                            cur.execute("UPDATE assets SET thumbnail_blob=%s, thumbnail_attempts = 10 WHERE id=%s", (blob, aid))
+                            conn.commit()
+                            print(f"    ✅ Drive thumbnail alındı!")
+                        else:
+                            cur.execute("UPDATE assets SET thumbnail_attempts = 10 WHERE id=%s", (aid,))
+                            conn.commit()
+                        continue
 
                     # Uzantı yoksa (GDrive klasör-adı olarak kaydedilmiş) → magic bytes ile tespit et
                     if not ext:

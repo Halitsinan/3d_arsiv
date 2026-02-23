@@ -104,6 +104,20 @@ def download_gdrive_file_to_temp(file_url_or_id, filename):
         temp_dir = config.get_temp_dir()
         os.makedirs(temp_dir, exist_ok=True)
 
+        # Çok parçalı RAR tespiti (indirmeden önce dosya adına bak)
+        import re as _re
+        _mp = _re.search(r'\.part(\d+)\.rar$', (filename or '').lower())
+        if _mp:
+            part_n = int(_mp.group(1))
+            if part_n > 1:
+                return None, (
+                    f"⚠️ Bu dosya çok parçalı RAR arşivinin {part_n}. parçasıdır.\n"
+                    "Dilimlemek için tüm parçaları (.part1.rar, .part2.rar, ...) aynı klasöre indirip manuel açın."
+                )
+            else:
+                # part1.rar — deneyerek devam et ama anlamlı hata mesajı hazırla
+                pass
+
         # Önce belleğe indir (magic bytes tespiti için)
         raw_buf = io.BytesIO()
         request = service.files().get_media(fileId=file_id)
@@ -176,6 +190,11 @@ def download_gdrive_file_to_temp(file_url_or_id, filename):
                 if not extracted:
                     return None, "RAR içinde desteklenen model dosyası bulunamadı (.stl/.obj/.3mf)"
                 return extracted, None
+            except rarfile.NeedFirstVolume:
+                return None, (
+                    "⚠️ Bu dosya çok parçalı RAR arşivinin ortasındaki bir parçadır.\n"
+                    "Tüm parçaları (.part1.rar, .part2.rar, ...) aynı klasöre indirip manuel açın."
+                )
             except Exception as er:
                 return None, f"RAR açma hatası: {er}"
 

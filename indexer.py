@@ -94,7 +94,22 @@ def extract_best_image_recursive(file_path):
     except: pass
     return best_img
 
-def scan_drive(service, folder_id, source_id, cur, conn, path=""):
+def is_multipart_rar(filename):
+    """Checks if file is a multi-part RAR: .part1.rar, .part2.rar, .r00, .r01 etc."""
+    fn = filename.lower()
+    import re
+    return bool(re.search(r'\.part\d+\.rar$', fn)) or bool(re.search(r'\.r\d+$', fn))
+
+def multipart_rar_index(filename):
+    """Returns part number from multi-part RAR filename, or 0 if not detected."""
+    import re
+    m = re.search(r'\.part(\d+)\.rar$', filename.lower())
+    if m: return int(m.group(1))
+    m = re.search(r'\.r(\d+)$', filename.lower())
+    if m: return int(m.group(1)) + 1  # .r00 = part2
+    return 0
+
+
     token = None
     while True:
         try:
@@ -149,14 +164,28 @@ def scan_drive(service, folder_id, source_id, cur, conn, path=""):
                                 thumb_blob = requests.get(img_file['thumbnailLink'].split('=')[0] + "=s250", timeout=5).content
                             except: pass
                     
-                    # Model dosyası: Önce archive, yoksa model
-                    model_file = archives[0] if archives else models[0]
-
-                    # Görsel yoksa model dosyasının kendi thumbnailLink'ini dene
-                    if not thumb_blob and 'thumbnailLink' in model_file:
-                        try:
-                            thumb_blob = requests.get(model_file['thumbnailLink'].split('=')[0] + "=s250", timeout=5).content
-                        except: pass
+                    # Çok parçalı RAR'ları grupla: sadece part1'i (veya en küçük parçayı) kaydet
+                    multipart_rars = [a for a in archives if is_multipart_rar(a['name'])]
+                    normal_archives = [a for a in archives if not is_multipart_rar(a['name'])]
+                    
+                    if multipart_rars and not normal_archives and not models:
+                        # Sadece çok parçalı RAR var — part1'i bul
+                        part1 = min(multipart_rars, key=lambda x: multipart_rar_index(x['name']))
+                        model_file = part1
+                        if not thumb_blob and 'thumbnailLink' in part1:
+                            try:
+                                thumb_blob = requests.get(part1['thumbnailLink'].split('=')[0] + "=s250", timeout=5).content
+                            except: pass
+                    else:
+                        # Normal arşiv veya model dosyası: Önce normal archive, yoksa model
+                        model_file = (normal_archives[0] if normal_archives else None) or (models[0] if models else None)
+                        if not thumb_blob and model_file and 'thumbnailLink' in model_file:
+                            try:
+                                thumb_blob = requests.get(model_file['thumbnailLink'].split('=')[0] + "=s250", timeout=5).content
+                            except: pass
+                    
+                    if not model_file:
+                        continue
                     model_link = model_file.get('webViewLink')
                     model_size = int(model_file.get('size', 0))
                     
