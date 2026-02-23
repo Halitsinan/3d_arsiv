@@ -117,9 +117,12 @@ def deep_scan():
             for aid, fname, fpath in cur.fetchall():
                 local_path = os.path.join(BASE_WORK_DIR, fname)
                 try:
-                    # Extension kontrolü - klasör veya geçersiz dosyaları atla
+                    # Extension kontrolü
                     ext = os.path.splitext(fname)[1].lower()
-                    if not ext:
+                    is_gdrive = 'drive.google.com' in fpath or '/d/' in fpath
+
+                    # Uzantı yoksa: GDrive assetse dene, değilse atla
+                    if not ext and not is_gdrive:
                         print(f"⏭️ Atlandı (klasör/geçersiz): {fname}")
                         cur.execute("UPDATE assets SET thumbnail_attempts = thumbnail_attempts + 1 WHERE id=%s", (aid,))
                         conn.commit()
@@ -137,7 +140,26 @@ def deep_scan():
                     
                     blob = None
                     ext = os.path.splitext(fname)[1].lower()
-                    
+
+                    # Uzantı yoksa (GDrive klasör-adı olarak kaydedilmiş) → magic bytes ile tespit et
+                    if not ext:
+                        with open(local_path, 'rb') as _f:
+                            magic = _f.read(8)
+                        if magic[:2] == b'PK':
+                            ext = '.zip'
+                        elif magic[:6] == b'7z\xbc\xaf\x27\x1c':
+                            ext = '.7z'
+                        elif magic[:7] in (b'Rar!\x1a\x07\x00',) or magic[:8] == b'Rar!\x1a\x07\x01\x00':
+                            ext = '.rar'
+                        else:
+                            # STL dene (solid text veya binary)
+                            ext = '.stl'
+                        print(f"      🔍 Uzantı yok, magic bytes → {ext}")
+                        # Dosyayı rename et
+                        new_local = local_path + ext
+                        os.rename(local_path, new_local)
+                        local_path = new_local
+
                     # Dosya tipine göre işlem yap
                     if ext in ['.stl', '.obj']:
                         # Direkt 3D dosya → Render al

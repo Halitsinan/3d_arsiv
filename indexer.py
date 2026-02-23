@@ -140,7 +140,7 @@ def scan_drive(service, folder_id, source_id, cur, conn, path=""):
                     # Klasör adını asset ismi olarak kullan (path'in son kısmı)
                     asset_name = path.split('/')[-1] if path else "Root"
                     
-                    # Thumbnail: Önce görsel ara, yoksa Google Drive thumbnail
+                    # Thumbnail: Önce görsel ara, yoksa model/arşiv dosyasının kendi Drive thumbnail'ı
                     thumb_blob = None
                     if images:
                         img_file = images[0]
@@ -151,6 +151,12 @@ def scan_drive(service, folder_id, source_id, cur, conn, path=""):
                     
                     # Model dosyası: Önce archive, yoksa model
                     model_file = archives[0] if archives else models[0]
+
+                    # Görsel yoksa model dosyasının kendi thumbnailLink'ini dene
+                    if not thumb_blob and 'thumbnailLink' in model_file:
+                        try:
+                            thumb_blob = requests.get(model_file['thumbnailLink'].split('=')[0] + "=s250", timeout=5).content
+                        except: pass
                     model_link = model_file.get('webViewLink')
                     model_size = int(model_file.get('size', 0))
                     
